@@ -21,15 +21,6 @@
   clear: left;
 }
 
-/*#douban_collections ul li.ga_year_month .ga_monthly_summary {
-  color: #555;
-  font-family: georgia,verdana;
-  font-size: 22px;
-  font-style: italic;
-  margin-left: 10px;
-  vertical-align: super;
-}*/
-
 #douban_collections ul li.dc_list {
   float: left;
   overflow: visible;
@@ -50,7 +41,7 @@
   -moz-box-shadow: 5px 5px 10px #444;
   -webkit-box-shadow: 5px 5px 10px #444;
   box-shadow: 5px 5px 10px #444;
-/*  behavior: url(/wp-content/plugins/grid-archives/PIE.htc);*/
+  behavior: url(/wp-content/plugins/grid-archives/PIE.htc);
 }
 
 #douban_collections ul li.dc_list div.dc_pic {
