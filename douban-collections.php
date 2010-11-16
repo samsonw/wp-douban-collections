@@ -68,25 +68,47 @@ if (!class_exists("DoubanCollections")) {
             return strcmp($collections_status_order[$status_a], $collections_status_order[$status_b]);
         }
         
-        private function get_douban_collections($user_id = '', $api_key = '', $type = 'book', $max_results = 1000){
+        private function get_douban_collections($user_id = '', $start_index = 1, $category = 'book', $api_key = '00b80c3a9c5d966d022824afd518c347', $max_results = 50){
+            $url = 'http://api.douban.com/people/' . $user_id . '/collection?cat=' . $category . '&start-index=' . $start_index . '&max-results=' . $max_results . '&alt=json';
+            if (!empty($api_key)){
+                $url .= '&apikey=' . $api_key;
+            }
+            // TODO: exception handling
+            $raw_collections = json_decode(file_get_contents($url), true);
+            
+            return $raw_collections;
+        }
+        
+        private function get_collections($user_id = '', $start_index = 1, $category = 'book'){
             // If we have a non-expire cached copy, use that instead
             if($collections = get_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY)) {
                 return $collections;
             }
             
-            $url = 'http://api.douban.com/people/' . $user_id . '/collection?cat=' . $type . '&max-results=' . $max_results . '&alt=json';
-            if (!empty($api_key)){
-                $url .= '&apikey=' . $api_key;
-            }
-            $raw_collections = json_decode(file_get_contents($url), true);
-            foreach ($raw_collections['entry'] as $entry) {
-                $subject_entry = $entry['db:subject'];
-                $subject_entry['updated'] = $entry['updated']['$t'];
-                $collections[ $entry['db:status']['$t'] ][] = $subject_entry;
-                $subject_entry = null;
-                $entry = null;
-            }
-            $raw_collections = null;
+            // TODO: make $max_display_results an option
+            $max_display_results = 500;
+            $items_per_request = 50;
+            
+            $i = 0;
+            // just make $total_results bigger than $start_index
+            $total_results = $start_index + 1;
+            do{
+                $current_index = $start_index + $items_per_request * $i;
+                if($current_index > $total_results){
+                    break;
+                }
+                $raw_collections = $this->get_douban_collections($user_id, $current_index, $category);
+                $total_results = $raw_collections['opensearch:totalResults']['$t'];
+                foreach ($raw_collections['entry'] as $entry) {
+                    $subject_entry = $entry['db:subject'];
+                    $subject_entry['updated'] = $entry['updated']['$t'];
+                    $collections[ $entry['db:status']['$t'] ][] = $subject_entry;
+                    $subject_entry = null;
+                    $entry = null;
+                }
+                $raw_collections = null;
+                $i++;
+            }while($current_index <= $max_display_results);
             
             uksort($collections, array(&$this, 'cmp_collections_status_order'));
             
@@ -148,7 +170,7 @@ if (!class_exists("DoubanCollections")) {
 
         function display_collections($atts){
             $this->options = $this->get_options();
-            $collections = $this->get_douban_collections($this->options['douban_user_id']);
+            $collections = $this->get_collections($this->options['douban_user_id']);
             return $this->compose_html($collections);
         }
         
