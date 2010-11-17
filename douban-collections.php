@@ -247,9 +247,9 @@ if (!class_exists("DoubanCollections")) {
                 $options = array();
         
                 $options['douban_user_id'] = $_POST['douban_user_id'];
-                $options['status_text']['reading'] = $_POST['status_reading_text'];
-                $options['status_text']['read'] = $_POST['status_read_text'];
-                $options['status_text']['wish'] = $_POST['status_wish_text'];
+                $options['status_text']['reading'] = stripslashes($_POST['status_reading_text']);
+                $options['status_text']['read'] = stripslashes($_POST['status_read_text']);
+                $options['status_text']['wish'] = stripslashes($_POST['status_wish_text']);
         
                 update_option(DOUBAN_COLLECTIONS_OPTION_NAME, $options);
         
