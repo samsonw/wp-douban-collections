@@ -122,10 +122,10 @@ if (!class_exists("DoubanCollections")) {
             return $author['name']['$t'];
         }
         
-        private function get_authors($authors){
+        private function get_authors($entry){
             $author_names = '';
-            if(!empty($authors)){
-                $author_names = implode(', ', array_map(array(&$this, 'get_author_name'), $authors));
+            if(!empty($entry['author'])){
+                $author_names = implode(', ', array_map(array(&$this, 'get_author_name'), $entry['author']));
             }
             return $author_names;
         }
@@ -155,7 +155,7 @@ if (!class_exists("DoubanCollections")) {
                         . '<li class="dc_info_title">'
                         . '<a href="' . $entry['link'][1]['@href'] . '" title="' . $entry['title']['$t'] . '" target="_blank">' . $entry['title']['$t'] . '</a>'
                         . '</li>'
-                        . '<li class="dc_info_item">' . $this->get_authors($entry['author']) . '</li>'
+                        . '<li class="dc_info_item">' . $this->get_authors($entry) . '</li>'
                         . '<li class="dc_info_item">' . $this->get_attribute($entry['db:attribute'], 'publisher') . '</li>'
                         . '<li class="dc_info_item">' . $this->get_attribute($entry['db:attribute'], 'pubdate') . '</li>'
                         . '</ul>'
