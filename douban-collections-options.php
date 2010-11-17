@@ -40,7 +40,7 @@
     
     <br />
     <h3>Refresh Collections Page</h3>
-    <p>It usually takes 30 mins for the collections page to be refreshed, you can refresh yourself as well by clicking the "Refresh" button below.</p>
+    <p>It usually takes 30 mins for the collections page to be refreshed to sync with your latest douban collections, you can refresh yourself manually as well by clicking the "Refresh" button below.</p>
     <p class="submit"><input type="submit" value="Refresh" class="button-highlighted" name="refresh"></p>
     
   </div>

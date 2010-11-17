@@ -9,6 +9,93 @@
   /* width: 900px; */
 }
 
+#douban_collections #dc_user {
+  margin-bottom: 10px;
+  background-color: #0D0D0D;
+  padding: 7px 5px 7px 10px;
+  width: 495px;
+  height: 180px;
+  opacity: 0.8;
+  overflow: hidden;
+  -moz-border-radius: 15px;
+  -webkit-border-radius: 15px;
+  border-radius: 15px;
+  -moz-box-shadow: 5px 5px 10px #444;
+  -webkit-box-shadow: 5px 5px 10px #444;
+  box-shadow: 5px 5px 10px #444;
+  behavior: url(/wp-content/plugins/grid-archives/PIE.htc);
+}
+
+#douban_collections #dc_user #dc_user_pic {
+  float: left;
+  margin: 10px 5px;
+  width: 120px;
+  height: 120px;
+}
+
+#douban_collections #dc_user #dc_user_pic img.dc_user_image {
+  width: 120px;
+  height: 120px;
+}
+
+#douban_collections #dc_user #dc_user_pic img.dc_user_image:hover {
+  opacity: 0.5;
+}
+
+#douban_collections #dc_user ul#dc_user_info {
+  float: left;
+  margin: 0 5px 5px 10px;
+  width: 350px;
+}
+
+#douban_collections #dc_user ul#dc_user_info li.dc_user_info_title {
+  float: left;
+  overflow: hidden;
+  list-style-type: none;
+  width: 100%;
+  line-height: 130%;
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+#douban_collections li.dc_user_info_title a, #douban_collections li.dc_user_info_title a:link, #douban_collections li.dc_user_info_title a:visited {
+  line-height: 125%;
+  color: #ABD1EA;
+}
+
+#douban_collections li.dc_user_info_title a:hover {
+  line-height: 125%;
+  color: #FF9933;
+}
+
+#douban_collections #dc_user ul#dc_user_info li.dc_user_info_title .dc_user_signature {
+  color: #555;
+  font-family: georgia,verdana;
+  font-size: 16px;
+  font-style: italic;
+  vertical-align: super;
+}
+
+#douban_collections #dc_user ul#dc_user_info li.dc_user_info_item {
+  float: left;
+  overflow: hidden;
+  list-style-type: none;
+  margin-bottom: 5px;
+  width: 100%;
+  line-height: 125%;
+}
+
+#douban_collections li.dc_user_info_item a, #douban_collections li.dc_user_info_item a:link, #douban_collections li.dc_user_info_item a:visited {
+  line-height: 125%;
+  color: #ABD1EA;
+}
+
+#douban_collections li.dc_user_info_item a:hover {
+  line-height: 125%;
+  color: #FF9933;
+}
+
+
 #douban_collections ul{
   padding: 0;
   margin: 0;

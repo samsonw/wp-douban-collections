@@ -2,7 +2,7 @@
 /* 
 Plugin Name: Douban Collections
 Plugin URI: http://blog.samsonis.me/tag/douban-collections
-Version: 0.5.0
+Version: 0.6.0
 Author: <a href="http://blog.samsonis.me/">Samson Wu</a>
 Description: Douban Collections provides a douban collections (books, movies, musics) page for WordPress.
 
@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **************************************************************************
  */
 
-define('DOUBAN_COLLECTIONS_VERSION', '0.5.0');
+define('DOUBAN_COLLECTIONS_VERSION', '0.6.0');
 
 /**
  * Guess the wp-content and plugin urls/paths
@@ -43,6 +43,7 @@ if ( ! defined( 'WP_PLUGIN_DIR' ) )
 
 
 define('DOUBAN_COLLECTIONS_TRANSIENT_KEY', 'douban_collections_transient');
+define('DOUBAN_COLLECTIONS_USER_TRANSIENT_KEY', 'douban_collections_user_transient');
 define('DOUBAN_COLLECTIONS_OPTION_NAME', 'douban_collections_options');
 
 
@@ -60,6 +61,31 @@ if (!class_exists("DoubanCollections")) {
             add_action('admin_menu', array(&$this, 'douban_collections_settings'));
 
             register_activation_hook(__FILE__, array(&$this, 'install'));
+        }
+        
+        private function get_douban_user($user_id = '', $api_key = '00b80c3a9c5d966d022824afd518c347'){
+            // If we have a non-expire cached copy, use that instead
+            if($douban_user = get_transient(DOUBAN_COLLECTIONS_USER_TRANSIENT_KEY)) {
+                return $douban_user;
+            }
+            
+            $url = 'http://api.douban.com/people/' . $user_id . '?alt=json';
+            if (!empty($api_key)){
+                $url .= '&apikey=' . $api_key;
+            }
+            // TODO: exception handling
+            $douban_user = json_decode(file_get_contents($url), true);
+            // we need the big user icon instead of the default small one, if exists
+            $big_icon_url = preg_replace('/u(\d+)/i', 'ul$1', $douban_user['link'][2]['@href']);
+            $headers = get_headers($big_icon_url);
+            if(strpos($headers[0], '404') === false){
+                $douban_user['link'][2]['@href'] = $big_icon_url;
+            }
+
+            // Store the results into the WordPress transient, expires in 24 hours
+            set_transient(DOUBAN_COLLECTIONS_USER_TRANSIENT_KEY, $douban_user, 60 * 60 * 24);
+            
+            return $douban_user;
         }
         
         private function cmp_collections_status_order($status_a, $status_b){
@@ -139,8 +165,26 @@ if (!class_exists("DoubanCollections")) {
             return '';
         }
         
-        private function compose_html($collections) {
+        private function compose_html($douban_user, $collections) {
             $html = '<div id="douban_collections" class="douban_collections_column">'
+                . '<div id="dc_user">'
+                . '<div id="dc_user_pic">'
+                . '<a href="' . $douban_user['link'][1]['@href'] . '" title="' . $douban_user['title']['$t'] . '" target="_blank">'
+                . '<img class="dc_user_image" src="' . $douban_user['link'][2]['@href'] . '" alt="' . $douban_user['title']['$t'] . '" />'
+                . '</a></div>'
+                . '<ul id="dc_user_info">'
+                . '<li class="dc_user_info_title">'
+                . '<a href="' . $douban_user['link'][1]['@href'] . '" title="' . $douban_user['title']['$t'] . '" target="_blank">' . $douban_user['title']['$t'] . '</a>';
+            if(!empty($douban_user['db:signature']['$t'])){
+                $html .= '<span class="dc_user_signature"> “' . $douban_user['db:signature']['$t'] . '”</span>';
+            }
+            $html .= '</li>'
+                . '<li class="dc_user_info_item">Id: ' . $douban_user['db:uid']['$t'] . '</li>'
+                . '<li class="dc_user_info_item">Home Page: <a href="' . $douban_user['link'][3]['@href']. '" title="' . $douban_user['link'][3]['@href'] . '" target="_blank">' . $douban_user['link'][3]['@href'] . '</a></li>'
+                . '<li class="dc_user_info_item">Location: ' . $douban_user['db:location']['$t'] . '</li>'
+                . '<li class="dc_user_info_item">' . $douban_user['content']['$t'] . '</li>'
+                . '</ul>'
+                . '</div>'
                 . '<ul>';
             foreach($collections as $status => $status_collections){
                 $html .= '<li class="dc_status">' . $this->options['status_text'][$status] . '</li>';
@@ -170,8 +214,9 @@ if (!class_exists("DoubanCollections")) {
 
         function display_collections($atts){
             $this->options = $this->get_options();
+            $douban_user = $this->get_douban_user($this->options['douban_user_id']);
             $collections = $this->get_collections($this->options['douban_user_id']);
-            return $this->compose_html($collections);
+            return $this->compose_html($douban_user, $collections);
         }
         
         private function get_options() {
@@ -231,6 +276,7 @@ if (!class_exists("DoubanCollections")) {
 
         function delete_cache() {
             delete_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY);
+            delete_transient(DOUBAN_COLLECTIONS_USER_TRANSIENT_KEY);
         }
 
         function install() {
