@@ -3,7 +3,7 @@ Contributors: samsonw
 Tags: douban, collections, page
 Requires at least: 2.5
 Tested up to: 3.0
-Stable tag: 0.6.1
+Stable tag: 0.7.0
 License: GPLv3
 
 Douban Collections provides a douban collections (books, movies, musics) page for WordPress.
@@ -36,6 +36,10 @@ http://blog.samsonis.me/douban/
 
 
 == Changelog ==
+
+= 0.7.0 =
+
+* added options for users to control how many "reading", "read" and "wish" books to show up in the collections page
 
 = 0.6.1 =
 

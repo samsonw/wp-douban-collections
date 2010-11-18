@@ -2,7 +2,7 @@
 /* 
 Plugin Name: Douban Collections
 Plugin URI: http://blog.samsonis.me/tag/douban-collections
-Version: 0.6.1
+Version: 0.7.0
 Author: <a href="http://blog.samsonis.me/">Samson Wu</a>
 Description: Douban Collections provides a douban collections (books, movies, musics) page for WordPress.
 
@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **************************************************************************
  */
 
-define('DOUBAN_COLLECTIONS_VERSION', '0.6.1');
+define('DOUBAN_COLLECTIONS_VERSION', '0.7.0');
 
 /**
  * Guess the wp-content and plugin urls/paths
@@ -136,6 +136,9 @@ if (!class_exists("DoubanCollections")) {
                 $i++;
             }while($current_index <= $max_display_results);
             
+            $collections['reading'] = array_slice($collections['reading'], 0, $this->options['status_max_results']['reading'], true);
+            $collections['read'] = array_slice($collections['read'], 0, $this->options['status_max_results']['read'], true);
+            $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['wish'], true);
             uksort($collections, array(&$this, 'cmp_collections_status_order'));
             
             // Store the results into the WordPress transient, expires in 30 mins
@@ -220,7 +223,7 @@ if (!class_exists("DoubanCollections")) {
         }
         
         private function get_options() {
-            $options = array('douban_user_id' => 'samsonw', 'status_text' => array('reading' => '在读 ...', 'read' => '读过 ...', 'wish' => '想读 ...'));
+            $options = array('douban_user_id' => 'samsonw', 'status_text' => array('reading' => '在读 ...', 'read' => '读过 ...', 'wish' => '想读 ...'), 'status_max_results' => array('reading' => 25, 'read' => 50, 'wish' => 50));
             $saved_options = get_option(DOUBAN_COLLECTIONS_OPTION_NAME);
         
             if (!empty($saved_options)) {
@@ -250,6 +253,10 @@ if (!class_exists("DoubanCollections")) {
                 $options['status_text']['reading'] = stripslashes($_POST['status_reading_text']);
                 $options['status_text']['read'] = stripslashes($_POST['status_read_text']);
                 $options['status_text']['wish'] = stripslashes($_POST['status_wish_text']);
+                
+                $options['status_max_results']['reading'] = (int)$_POST['status_reading_max_results'];
+                $options['status_max_results']['read'] = (int)$_POST['status_read_max_results'];
+                $options['status_max_results']['wish'] = (int)$_POST['status_wish_max_results'];
         
                 update_option(DOUBAN_COLLECTIONS_OPTION_NAME, $options);
         

@@ -39,6 +39,24 @@
     </tbody></table>
     
     <br />
+    <p>Limit the maximum number of books displayed</p>
+    <table class="form-table">
+      <tbody>
+      <tr>
+      <th><label for="status_reading_max_results">Show at most</label></th>
+      <td><input type="text" class="small-text" value="<?php echo $options['status_max_results']['reading']; ?>" id="status_reading_max_results" name="status_reading_max_results"> "Reading" books</td>
+      </tr>
+      <tr>
+        <th><label for="status_read_max_results">Show at most</label></th>
+        <td><input type="text" class="small-text" value="<?php echo $options['status_max_results']['read']; ?>" id="status_read_max_results" name="status_read_max_results"> "Read" books</td>
+      </tr>
+      <tr>
+        <th><label for="status_wish_max_results">Show at most</label></th>
+        <td><input type="text" class="small-text" value="<?php echo $options['status_max_results']['wish']; ?>" id="status_wish_max_results" name="status_wish_max_results"> "Wish" books</td>
+      </tr>
+    </tbody></table>
+    
+    <br />
     <h3>Refresh Collections Page</h3>
     <p>It usually takes 30 mins for the collections page to be refreshed to sync with your latest douban collections, you can refresh yourself manually as well by clicking the "Refresh" button below.</p>
     <p class="submit"><input type="submit" value="Refresh" class="button-highlighted" name="refresh"></p>
