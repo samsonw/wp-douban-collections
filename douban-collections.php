@@ -2,7 +2,7 @@
 /* 
 Plugin Name: Douban Collections
 Plugin URI: http://blog.samsonis.me/tag/douban-collections
-Version: 0.8.0
+Version: 0.9.0
 Author: <a href="http://blog.samsonis.me/">Samson Wu</a>
 Description: Douban Collections provides a douban collections (books, movies, musics) page for WordPress.
 
@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **************************************************************************
  */
 
-define('DOUBAN_COLLECTIONS_VERSION', '0.8.0');
+define('DOUBAN_COLLECTIONS_VERSION', '0.9.0');
 
 /**
  * Guess the wp-content and plugin urls/paths
@@ -90,11 +90,11 @@ if (!class_exists("DoubanCollections")) {
         
         private function cmp_collections_status_order($status_a, $status_b){
             // TODO: make $collections_status_order an opition
-            $collections_status_order = array('reading' => '0', 'read' => '1', 'wish' => '2');
+            $collections_status_order = array('reading' => '0', 'read' => '1', 'wish' => '2', 'watched' => '3');
             return strcmp($collections_status_order[$status_a], $collections_status_order[$status_b]);
         }
         
-        private function get_douban_collections($user_id = '', $start_index = 1, $category = 'book', $api_key = '00b80c3a9c5d966d022824afd518c347', $max_results = 50){
+        private function get_douban_collections($user_id = '', $category = 'book', $start_index = 1, $api_key = '00b80c3a9c5d966d022824afd518c347', $max_results = 50){
             $url = 'http://api.douban.com/people/' . $user_id . '/collection?cat=' . $category . '&start-index=' . $start_index . '&max-results=' . $max_results . '&alt=json';
             if (!empty($api_key)){
                 $url .= '&apikey=' . $api_key;
@@ -105,9 +105,9 @@ if (!class_exists("DoubanCollections")) {
             return $raw_collections;
         }
         
-        private function get_collections($user_id = '', $start_index = 1, $category = 'book'){
+        private function get_collections($user_id = '', $category = 'book', $start_index = 1){
             // If we have a non-expire cached copy, use that instead
-            if($collections = get_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY)) {
+            if($collections = get_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY . $category)) {
                 return $collections;
             }
             
@@ -123,7 +123,7 @@ if (!class_exists("DoubanCollections")) {
                 if($current_index > $total_results){
                     break;
                 }
-                $raw_collections = $this->get_douban_collections($user_id, $current_index, $category);
+                $raw_collections = $this->get_douban_collections($user_id, $category, $current_index);
                 $total_results = $raw_collections['opensearch:totalResults']['$t'];
                 foreach ($raw_collections['entry'] as $entry) {
                     $subject_entry = $entry['db:subject'];
@@ -136,13 +136,22 @@ if (!class_exists("DoubanCollections")) {
                 $i++;
             }while($current_index <= $max_display_results);
             
-            $collections['reading'] = array_slice($collections['reading'], 0, $this->options['status_max_results']['reading'], true);
-            $collections['read'] = array_slice($collections['read'], 0, $this->options['status_max_results']['read'], true);
-            $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['wish'], true);
+            switch ($category) {
+                case 'book':
+                    $collections['reading'] = array_slice($collections['reading'], 0, $this->options['status_max_results']['book']['reading'], true);
+                    $collections['read'] = array_slice($collections['read'], 0, $this->options['status_max_results']['book']['read'], true);
+                    $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['book']['wish'], true);
+                    break;
+                case 'movie':
+                    $collections['watched'] = array_slice($collections['watched'], 0, $this->options['status_max_results']['movie']['watched'], true);
+                    $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['movie']['wish'], true);
+                    break;
+            }
+            
             uksort($collections, array(&$this, 'cmp_collections_status_order'));
             
             // Store the results into the WordPress transient, expires in 30 mins
-            set_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY, $collections, 60 * 30);
+            set_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY . $category, $collections, 60 * 30);
             
             return $collections;
         }
@@ -168,29 +177,49 @@ if (!class_exists("DoubanCollections")) {
             return '';
         }
         
-        private function compose_html($douban_user, $collections) {
-            $html = '<div id="douban_collections" class="douban_collections_column">'
-                . '<div id="dc_user">'
-                . '<div id="dc_user_pic">'
-                . '<a href="' . $douban_user['link'][1]['@href'] . '" title="' . $douban_user['title']['$t'] . '" target="_blank">'
-                . '<img class="dc_user_image" src="' . $douban_user['link'][2]['@href'] . '" alt="' . $douban_user['title']['$t'] . '" />'
-                . '</a></div>'
-                . '<ul id="dc_user_info">'
-                . '<li class="dc_user_info_title">'
-                . '<a href="' . $douban_user['link'][1]['@href'] . '" title="' . $douban_user['title']['$t'] . '" target="_blank">' . $douban_user['title']['$t'] . '</a>';
-            if(!empty($douban_user['db:signature']['$t'])){
-                $html .= '<span class="dc_user_signature"> “' . $douban_user['db:signature']['$t'] . '”</span>';
+        private function compose_html($category, $with_user_info) {
+            $html = '<div id="douban_collections" class="douban_collections_column">';
+            if('true' === strtolower($with_user_info)) {
+                $douban_user = $this->get_douban_user($this->options['douban_user_id']);
+                $html .= '<div id="dc_user">'
+                    . '<div id="dc_user_pic">'
+                    . '<a href="' . $douban_user['link'][1]['@href'] . '" title="' . $douban_user['title']['$t'] . '" target="_blank">'
+                    . '<img class="dc_user_image" src="' . $douban_user['link'][2]['@href'] . '" alt="' . $douban_user['title']['$t'] . '" />'
+                    . '</a></div>'
+                    . '<ul id="dc_user_info">'
+                    . '<li class="dc_user_info_title">'
+                    . '<a href="' . $douban_user['link'][1]['@href'] . '" title="' . $douban_user['title']['$t'] . '" target="_blank">' . $douban_user['title']['$t'] . '</a>';
+                if(!empty($douban_user['db:signature']['$t'])){
+                    $html .= '<span class="dc_user_signature"> “' . $douban_user['db:signature']['$t'] . '”</span>';
+                }
+                $html .= '</li>'
+                    . '<li class="dc_user_info_item">Id: ' . $douban_user['db:uid']['$t'] . '</li>'
+                    . '<li class="dc_user_info_item">Home Page: <a href="' . $douban_user['link'][3]['@href']. '" title="' . $douban_user['link'][3]['@href'] . '" target="_blank">' . $douban_user['link'][3]['@href'] . '</a></li>'
+                    . '<li class="dc_user_info_item">Location: ' . $douban_user['db:location']['$t'] . '</li>'
+                    . '<li class="dc_user_info_item">' . $douban_user['content']['$t'] . '</li>'
+                    . '</ul>'
+                    . '</div>';
             }
-            $html .= '</li>'
-                . '<li class="dc_user_info_item">Id: ' . $douban_user['db:uid']['$t'] . '</li>'
-                . '<li class="dc_user_info_item">Home Page: <a href="' . $douban_user['link'][3]['@href']. '" title="' . $douban_user['link'][3]['@href'] . '" target="_blank">' . $douban_user['link'][3]['@href'] . '</a></li>'
-                . '<li class="dc_user_info_item">Location: ' . $douban_user['db:location']['$t'] . '</li>'
-                . '<li class="dc_user_info_item">' . $douban_user['content']['$t'] . '</li>'
-                . '</ul>'
-                . '</div>'
-                . '<ul>';
+            // Never trust user input
+            switch ($category) {
+                case 'book':
+                    $category = 'book';
+                    break;
+                case 'movie':
+                    $category = 'movie';
+                    break;
+                case 'music':
+                    //TODO add music category, now default to book
+                    $category = 'book';
+                    break;
+                default:
+                    $category = 'book';
+                    break;
+            }
+            $collections = $this->get_collections($this->options['douban_user_id'], $category);
+            $html .= '<ul>';
             foreach($collections as $status => $status_collections){
-                $html .= '<li class="dc_status">' . $this->options['status_text'][$status] . '</li>';
+                $html .= '<li class="dc_status">' . $this->options['status_text'][$category][$status] . '</li>';
                 foreach($status_collections as $entry){
                     $html .= '<li class="dc_list">'
                         . '<div class="dc_entry">'
@@ -205,8 +234,14 @@ if (!class_exists("DoubanCollections")) {
                         . '<li class="dc_info_item">' . $this->get_authors($entry) . '</li>'
                         . '<li class="dc_info_item">' . $this->get_attribute($entry['db:attribute'], 'publisher') . '</li>'
                         . '<li class="dc_info_item">' . $this->get_attribute($entry['db:attribute'], 'pubdate') . '</li>'
-                        . '</ul>'
-                        . '</div>'
+                        . '</ul>';
+                    $movie_imdb = $this->get_attribute($entry['db:attribute'], 'imdb');
+                    if(!empty($movie_imdb)){
+                        $html .= '<p class="dc_info_footer">'
+                            . '<a href="' . $movie_imdb . '" title="IMDB" target="_blank">Link to IMDB'
+                            . '</a></p>';
+                    }
+                    $html .= '</div>'
                         . '<p class="dc_updated">' . $status . ' at ' . mysql2date('j M Y', $entry['updated']) . '</p>'
                         . '</li>';
                 }
@@ -216,21 +251,30 @@ if (!class_exists("DoubanCollections")) {
         }
 
         function display_collections($atts){
-            // $this->options = $this->get_options();
-            $douban_user = $this->get_douban_user($this->options['douban_user_id']);
-            $collections = $this->get_collections($this->options['douban_user_id']);
-            return $this->compose_html($douban_user, $collections);
+            extract( shortcode_atts( array(
+                'category' => 'book',
+                'with_user_info' => 'true',
+                ), $atts ) );
+            return $this->compose_html($category, $with_user_info);
         }
         
         private function get_options() {
-            $options = array('douban_user_id' => 'samsonw', 'status_text' => array('reading' => '在读 ...', 'read' => '读过 ...', 'wish' => '想读 ...'), 'status_max_results' => array('reading' => 25, 'read' => 50, 'wish' => 50), 'custom_css_styles' => '');
+            $options = array('douban_user_id' => 'samsonw', 'status_text' => array('book' => array('reading' => '在读 ...', 'read' => '读过 ...', 'wish' => '想读 ...'), 'movie' => array('watched' => '看过 ...', 'wish' => '想看 ...')), 'status_max_results' => array('book' => array('reading' => 25, 'read' => 50, 'wish' => 50), 'movie' => array('watched' => 50, 'wish' => 50)), 'custom_css_styles' => '');
+            
             $saved_options = get_option(DOUBAN_COLLECTIONS_OPTION_NAME);
-        
+            
             if (!empty($saved_options)) {
-                foreach ($saved_options as $key => $option)
-                    $options[$key] = $option;
+                foreach ($saved_options as $key => $option) {
+                    if (is_array($option)) {
+                        foreach ($option as $ar_key => $ar_option) {
+                            $options[$key][$ar_key] = $ar_option;
+                        }
+                    } else {
+                        $options[$key] = $option;
+                    }
+                }
             }
-        
+            
             if ($saved_options != $options) {
                 update_option(DOUBAN_COLLECTIONS_OPTION_NAME, $options);
             }
@@ -250,13 +294,18 @@ if (!class_exists("DoubanCollections")) {
                 $options = array();
         
                 $options['douban_user_id'] = $_POST['douban_user_id'];
-                $options['status_text']['reading'] = stripslashes($_POST['status_reading_text']);
-                $options['status_text']['read'] = stripslashes($_POST['status_read_text']);
-                $options['status_text']['wish'] = stripslashes($_POST['status_wish_text']);
                 
-                $options['status_max_results']['reading'] = (int)$_POST['status_reading_max_results'];
-                $options['status_max_results']['read'] = (int)$_POST['status_read_max_results'];
-                $options['status_max_results']['wish'] = (int)$_POST['status_wish_max_results'];
+                $options['status_text']['book']['reading'] = stripslashes($_POST['book_status_reading_text']);
+                $options['status_text']['book']['read'] = stripslashes($_POST['book_status_read_text']);
+                $options['status_text']['book']['wish'] = stripslashes($_POST['book_status_wish_text']);
+                $options['status_max_results']['book']['reading'] = (int)$_POST['book_status_reading_max_results'];
+                $options['status_max_results']['book']['read'] = (int)$_POST['book_status_read_max_results'];
+                $options['status_max_results']['book']['wish'] = (int)$_POST['book_status_wish_max_results'];
+                
+                $options['status_text']['movie']['watched'] = stripslashes($_POST['movie_status_watched_text']);
+                $options['status_text']['movie']['wish'] = stripslashes($_POST['movie_status_wish_text']);
+                $options['status_max_results']['movie']['watched'] = (int)$_POST['movie_status_watched_max_results'];
+                $options['status_max_results']['movie']['wish'] = (int)$_POST['movie_status_wish_max_results'];
                 
                 $options['custom_css_styles'] = stripslashes($_POST['custom_css_styles']);
         
@@ -293,7 +342,10 @@ if (!class_exists("DoubanCollections")) {
         }
 
         function delete_cache() {
-            delete_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY);
+            $categories = array('', 'book', 'movie', 'music');
+            foreach($categories as $category) {
+                delete_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY . $category);
+            }
             delete_transient(DOUBAN_COLLECTIONS_USER_TRANSIENT_KEY);
         }
 

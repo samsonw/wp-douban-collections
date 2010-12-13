@@ -95,7 +95,6 @@
   color: #FF9933;
 }
 
-
 #douban_collections ul{
   padding: 0;
   margin: 0;
@@ -149,6 +148,7 @@
   margin-top: 5px;
   margin-left: 10px;
   width: 105px;
+  height: 90px;
 }
 
 #douban_collections ul li.dc_list ul.dc_info li.dc_info_title {
@@ -164,6 +164,14 @@
   text-align: left;
   line-height: 125%;
   font-size: 10px;
+}
+
+#douban_collections ul li.dc_list p.dc_info_footer {
+  margin: 0 10px 0 0;
+  float: right;
+  text-align: left;
+  line-height: 125%;
+  font-size: 9px;
 }
 
 #douban_collections ul li.dc_list a, #douban_collections ul li.dc_list a:link, #douban_collections ul li.dc_list a:visited {
