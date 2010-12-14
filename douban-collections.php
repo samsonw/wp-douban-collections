@@ -2,7 +2,7 @@
 /* 
 Plugin Name: Douban Collections
 Plugin URI: http://blog.samsonis.me/tag/douban-collections
-Version: 0.9.0
+Version: 0.9.1
 Author: <a href="http://blog.samsonis.me/">Samson Wu</a>
 Description: Douban Collections provides a douban collections (books, movies, musics) page for WordPress.
 
@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **************************************************************************
  */
 
-define('DOUBAN_COLLECTIONS_VERSION', '0.9.0');
+define('DOUBAN_COLLECTIONS_VERSION', '0.9.1');
 
 /**
  * Guess the wp-content and plugin urls/paths
@@ -90,7 +90,7 @@ if (!class_exists("DoubanCollections")) {
         
         private function cmp_collections_status_order($status_a, $status_b){
             // TODO: make $collections_status_order an opition
-            $collections_status_order = array('reading' => '0', 'read' => '1', 'wish' => '2', 'watched' => '3');
+            $collections_status_order = array('reading' => '0', 'read' => '1', 'wish' => '2', 'watching' => '3', 'watched' => '4');
             return strcmp($collections_status_order[$status_a], $collections_status_order[$status_b]);
         }
         
@@ -138,13 +138,26 @@ if (!class_exists("DoubanCollections")) {
             
             switch ($category) {
                 case 'book':
-                    $collections['reading'] = array_slice($collections['reading'], 0, $this->options['status_max_results']['book']['reading'], true);
-                    $collections['read'] = array_slice($collections['read'], 0, $this->options['status_max_results']['book']['read'], true);
-                    $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['book']['wish'], true);
+                    if(!empty($collections['reading'])){
+                        $collections['reading'] = array_slice($collections['reading'], 0, $this->options['status_max_results']['book']['reading'], true);
+                    }
+                    if(!empty($collections['read'])){
+                        $collections['read'] = array_slice($collections['read'], 0, $this->options['status_max_results']['book']['read'], true);
+                    }
+                    if(!empty($collections['wish'])){
+                        $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['book']['wish'], true);
+                    }
                     break;
                 case 'movie':
-                    $collections['watched'] = array_slice($collections['watched'], 0, $this->options['status_max_results']['movie']['watched'], true);
-                    $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['movie']['wish'], true);
+                    if(!empty($collections['watched'])){
+                        $collections['watched'] = array_slice($collections['watched'], 0, $this->options['status_max_results']['movie']['watched'], true);
+                    }
+                    if(!empty($collections['watching'])){
+                        $collections['watching'] = array_slice($collections['watching'], 0, $this->options['status_max_results']['movie']['watching'], true);
+                    }
+                    if(!empty($collections['wish'])){
+                        $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['movie']['wish'], true);
+                    }
                     break;
             }
             
@@ -259,7 +272,7 @@ if (!class_exists("DoubanCollections")) {
         }
         
         private function get_options() {
-            $options = array('douban_user_id' => 'samsonw', 'status_text' => array('book' => array('reading' => '在读 ...', 'read' => '读过 ...', 'wish' => '想读 ...'), 'movie' => array('watched' => '看过 ...', 'wish' => '想看 ...')), 'status_max_results' => array('book' => array('reading' => 25, 'read' => 50, 'wish' => 50), 'movie' => array('watched' => 50, 'wish' => 50)), 'custom_css_styles' => '');
+            $options = array('douban_user_id' => 'samsonw', 'status_text' => array('book' => array('reading' => '在读 ...', 'read' => '读过 ...', 'wish' => '想读 ...'), 'movie' => array('watched' => '看过 ...', 'watching' => ' 在看 ...', 'wish' => '想看 ...')), 'status_max_results' => array('book' => array('reading' => 25, 'read' => 50, 'wish' => 50), 'movie' => array('watched' => 50, 'watching' => 50, 'wish' => 50)), 'custom_css_styles' => '');
             
             $saved_options = get_option(DOUBAN_COLLECTIONS_OPTION_NAME);
             
@@ -303,8 +316,10 @@ if (!class_exists("DoubanCollections")) {
                 $options['status_max_results']['book']['wish'] = (int)$_POST['book_status_wish_max_results'];
                 
                 $options['status_text']['movie']['watched'] = stripslashes($_POST['movie_status_watched_text']);
+                $options['status_text']['movie']['watching'] = stripslashes($_POST['movie_status_watching_text']);
                 $options['status_text']['movie']['wish'] = stripslashes($_POST['movie_status_wish_text']);
                 $options['status_max_results']['movie']['watched'] = (int)$_POST['movie_status_watched_max_results'];
+                $options['status_max_results']['movie']['watching'] = (int)$_POST['movie_status_watching_max_results'];
                 $options['status_max_results']['movie']['wish'] = (int)$_POST['movie_status_wish_max_results'];
                 
                 $options['custom_css_styles'] = stripslashes($_POST['custom_css_styles']);
