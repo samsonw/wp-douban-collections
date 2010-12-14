@@ -2,7 +2,7 @@
 /* 
 Plugin Name: Douban Collections
 Plugin URI: http://blog.samsonis.me/tag/douban-collections
-Version: 0.9.2
+Version: 0.9.3
 Author: <a href="http://blog.samsonis.me/">Samson Wu</a>
 Description: Douban Collections provides a douban collections (books, movies, musics) page for WordPress.
 
@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **************************************************************************
  */
 
-define('DOUBAN_COLLECTIONS_VERSION', '0.9.2');
+define('DOUBAN_COLLECTIONS_VERSION', '0.9.3');
 
 /**
  * Guess the wp-content and plugin urls/paths
@@ -136,32 +136,36 @@ if (!class_exists("DoubanCollections")) {
                 $i++;
             }while($current_index <= $max_display_results);
             
-            switch ($category) {
-                case 'book':
-                    if(!empty($collections['reading'])){
-                        $collections['reading'] = array_slice($collections['reading'], 0, $this->options['status_max_results']['book']['reading'], true);
-                    }
-                    if(!empty($collections['read'])){
-                        $collections['read'] = array_slice($collections['read'], 0, $this->options['status_max_results']['book']['read'], true);
-                    }
-                    if(!empty($collections['wish'])){
-                        $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['book']['wish'], true);
-                    }
-                    break;
-                case 'movie':
-                    if(!empty($collections['watched'])){
-                        $collections['watched'] = array_slice($collections['watched'], 0, $this->options['status_max_results']['movie']['watched'], true);
-                    }
-                    if(!empty($collections['watching'])){
-                        $collections['watching'] = array_slice($collections['watching'], 0, $this->options['status_max_results']['movie']['watching'], true);
-                    }
-                    if(!empty($collections['wish'])){
-                        $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['movie']['wish'], true);
-                    }
-                    break;
-            }
+            if(!empty($collections)) {
+                switch ($category) {
+                    case 'book':
+                        if(!empty($collections['reading'])){
+                            $collections['reading'] = array_slice($collections['reading'], 0, $this->options['status_max_results']['book']['reading'], true);
+                        }
+                        if(!empty($collections['read'])){
+                            $collections['read'] = array_slice($collections['read'], 0, $this->options['status_max_results']['book']['read'], true);
+                        }
+                        if(!empty($collections['wish'])){
+                            $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['book']['wish'], true);
+                        }
+                        break;
+                    case 'movie':
+                        if(!empty($collections['watched'])){
+                            $collections['watched'] = array_slice($collections['watched'], 0, $this->options['status_max_results']['movie']['watched'], true);
+                        }
+                        if(!empty($collections['watching'])){
+                            $collections['watching'] = array_slice($collections['watching'], 0, $this->options['status_max_results']['movie']['watching'], true);
+                        }
+                        if(!empty($collections['wish'])){
+                            $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['movie']['wish'], true);
+                        }
+                        break;
+                }
             
-            uksort($collections, array(&$this, 'cmp_collections_status_order'));
+                uksort($collections, array(&$this, 'cmp_collections_status_order'));
+            }else {
+                $collections = array();
+            }
             
             // Store the results into the WordPress transient, expires in 30 mins
             set_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY . $category, $collections, 60 * 30);
