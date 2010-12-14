@@ -67,7 +67,7 @@
       <td><input type="text" class="regular-text" value="<?php echo $options['status_text']['movie']['wish']; ?>" id="movie_status_wish_text" name="movie_status_wish_text"></td>
       </tr>
       <tr>
-      <th><label for="movie_status_watching_text">"Watched" status display name</label></th>
+      <th><label for="movie_status_watching_text">"Watching" status display name</label></th>
       <td><input type="text" class="regular-text" value="<?php echo $options['status_text']['movie']['watching']; ?>" id="movie_status_watching_text" name="movie_status_watching_text"></td>
       </tr>
       <tr>
@@ -86,7 +86,7 @@
       </tr>
       <tr>
         <th><label for="movie_status_watching_max_results">Show at most</label></th>
-        <td><input type="text" class="small-text" value="<?php echo $options['status_max_results']['movie']['watching']; ?>" id="movie_status_watching_max_results" name="movie_status_watching_max_results"> "Watched" movies</td>
+        <td><input type="text" class="small-text" value="<?php echo $options['status_max_results']['movie']['watching']; ?>" id="movie_status_watching_max_results" name="movie_status_watching_max_results"> "Watching" movies</td>
       </tr>
       <tr>
       <th><label for="movie_status_watched_max_results">Show at most</label></th>
