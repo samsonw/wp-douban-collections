@@ -103,6 +103,7 @@
 #douban_collections ul li.dc_status {
   color: #ABD1EA;
   font-size: 34px;
+  margin-bottom: 10px;
   padding: 20px 0;
   clear: left;
 }
