@@ -2,7 +2,7 @@
 /* 
 Plugin Name: Douban Collections
 Plugin URI: http://blog.samsonis.me/tag/douban-collections
-Version: 0.9.3
+Version: 1.0.0
 Author: <a href="http://blog.samsonis.me/">Samson Wu</a>
 Description: Douban Collections provides a douban collections (books, movies, musics) page for WordPress.
 
@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **************************************************************************
  */
 
-define('DOUBAN_COLLECTIONS_VERSION', '0.9.3');
+define('DOUBAN_COLLECTIONS_VERSION', '1.0.0');
 
 /**
  * Guess the wp-content and plugin urls/paths
@@ -55,6 +55,7 @@ if (!class_exists("DoubanCollections")) {
             $this->plugin_url = WP_PLUGIN_URL . '/' . dirname(plugin_basename(__FILE__));
 
             add_action('wp_print_styles', array(&$this, 'load_styles'));
+            add_action('admin_print_scripts', array(&$this, 'load_admin_scripts'));
             add_shortcode('douban_collections', array(&$this, 'display_collections'));
 
             // admin menu
@@ -276,7 +277,7 @@ if (!class_exists("DoubanCollections")) {
         }
         
         private function get_options() {
-            $options = array('douban_user_id' => 'samsonw', 'status_text' => array('book' => array('reading' => '在读 ...', 'read' => '读过 ...', 'wish' => '想读 ...'), 'movie' => array('watched' => '看过 ...', 'watching' => ' 在看 ...', 'wish' => '想看 ...')), 'status_max_results' => array('book' => array('reading' => 25, 'read' => 50, 'wish' => 50), 'movie' => array('watched' => 50, 'watching' => 50, 'wish' => 50)), 'custom_css_styles' => '');
+            $options = array('douban_user_id' => 'samsonw', 'status_text' => array('book' => array('reading' => '在读 ...', 'read' => '读过 ...', 'wish' => '想读 ...'), 'movie' => array('watched' => '看过 ...', 'watching' => ' 在看 ...', 'wish' => '想看 ...')), 'status_max_results' => array('book' => array('reading' => 25, 'read' => 50, 'wish' => 50), 'movie' => array('watched' => 50, 'watching' => 50, 'wish' => 50)), 'custom_css_styles' => '', 'load_resources_only_in_douban_collections_page' => false, 'douban_collections_page_names' => 'douban, books, movies, reads');
             
             $saved_options = get_option(DOUBAN_COLLECTIONS_OPTION_NAME);
             
@@ -307,27 +308,31 @@ if (!class_exists("DoubanCollections")) {
         
             if(isset($_POST['submit'])) {
                 check_admin_referer('douban-collections-nonce');
-        
+
+                $orig_options = $options;
                 $options = array();
-        
+
                 $options['douban_user_id'] = $_POST['douban_user_id'];
-                
+
                 $options['status_text']['book']['reading'] = stripslashes($_POST['book_status_reading_text']);
                 $options['status_text']['book']['read'] = stripslashes($_POST['book_status_read_text']);
                 $options['status_text']['book']['wish'] = stripslashes($_POST['book_status_wish_text']);
                 $options['status_max_results']['book']['reading'] = (int)$_POST['book_status_reading_max_results'];
                 $options['status_max_results']['book']['read'] = (int)$_POST['book_status_read_max_results'];
                 $options['status_max_results']['book']['wish'] = (int)$_POST['book_status_wish_max_results'];
-                
+
                 $options['status_text']['movie']['watched'] = stripslashes($_POST['movie_status_watched_text']);
                 $options['status_text']['movie']['watching'] = stripslashes($_POST['movie_status_watching_text']);
                 $options['status_text']['movie']['wish'] = stripslashes($_POST['movie_status_wish_text']);
                 $options['status_max_results']['movie']['watched'] = (int)$_POST['movie_status_watched_max_results'];
                 $options['status_max_results']['movie']['watching'] = (int)$_POST['movie_status_watching_max_results'];
                 $options['status_max_results']['movie']['wish'] = (int)$_POST['movie_status_wish_max_results'];
-                
+
                 $options['custom_css_styles'] = stripslashes($_POST['custom_css_styles']);
-        
+
+                $options['load_resources_only_in_douban_collections_page'] = isset($_POST['load_resources_only_in_douban_collections_page']) ? (boolean)$_POST['load_resources_only_in_douban_collections_page'] : false;
+                $options['douban_collections_page_names'] = $options['load_resources_only_in_douban_collections_page'] ? stripslashes($_POST['douban_collections_page_names']) : $orig_options['douban_collections_page_names'];
+
                 update_option(DOUBAN_COLLECTIONS_OPTION_NAME, $options);
         
                 $this->delete_cache();
@@ -347,17 +352,37 @@ if (!class_exists("DoubanCollections")) {
 
         function load_styles(){
             $this->options = $this->get_options();
-            
-            $css_url = $this->plugin_url . '/douban-collections.css';
-            wp_register_style('douban_collections', $css_url, array(), DOUBAN_COLLECTIONS_VERSION, 'screen');
-            wp_enqueue_style('douban_collections');
-            
-            $custom_css_styles = trim($this->options['custom_css_styles']);
-            if(!empty($custom_css_styles)) {
-                $custom_css_url = $this->plugin_url . '/douban-collections-custom-css.php';
-                wp_register_style('douban_collections_custom', $custom_css_url, array(), DOUBAN_COLLECTIONS_VERSION, 'screen');
-                wp_enqueue_style('douban_collections_custom');
+
+            if($this->options['load_resources_only_in_douban_collections_page']){
+                $load_extra = false;
+                // if enabled, only load css in those specific files
+                foreach(array_map('trim', explode(",", $this->options['douban_collections_page_names'])) as $page_name){
+                   $load_extra = is_page($page_name);
+                   if($load_extra) break;
+               }
+            }else{
+                // disabled, load css
+               $load_extra = true;
             }
+
+            if($load_extra){
+                $css_url = $this->plugin_url . '/douban-collections.css';
+                wp_register_style('douban_collections', $css_url, array(), DOUBAN_COLLECTIONS_VERSION, 'screen');
+                wp_enqueue_style('douban_collections');
+            
+                $custom_css_styles = trim($this->options['custom_css_styles']);
+                if(!empty($custom_css_styles)) {
+                    $custom_css_url = $this->plugin_url . '/douban-collections-custom-css.php';
+                    wp_register_style('douban_collections_custom', $custom_css_url, array(), DOUBAN_COLLECTIONS_VERSION, 'screen');
+                    wp_enqueue_style('douban_collections_custom');
+                }
+            }
+        }
+
+        function load_admin_scripts(){
+            $admin_script_url = $this->plugin_url . '/douban-collections-options.js';
+            wp_register_script('douban_collections_admin_script', $admin_script_url, 'jquery', DOUBAN_COLLECTIONS_VERSION);
+            wp_enqueue_script('douban_collections_admin_script');
         }
 
         function delete_cache() {

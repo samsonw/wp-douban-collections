@@ -2,8 +2,8 @@
 Contributors: samsonw
 Tags: douban, collections, page
 Requires at least: 2.5
-Tested up to: 3.0
-Stable tag: 0.9.3
+Tested up to: 3.2
+Stable tag: 1.0.0
 License: GPLv3
 
 Douban Collections provides a douban collections (books, movies, musics) page for WordPress.
@@ -53,6 +53,12 @@ http://blog.samsonis.me/movies/
 
 
 == Changelog ==
+
+= 1.0.0 =
+
+* added a option to enable load plugin resources only in specific pages and posts, thus increase load speed of other pages and posts.
+* tiny UI tweak in plugin admin setting page, make it compatible with the Refreshed Administative UI of wordpress 3.2.
+* make the plugin compatible with wordpress 3.2.
 
 = 0.9.3 =
 

@@ -100,11 +100,18 @@
       <tbody>
         <tr>
           <th><label for="custom_css_styles">Custom CSS Styles</label></th>
-          <td><textarea id="custom_css_styles" name="custom_css_styles" cols="60" rows="5"><?php echo $options['custom_css_styles']; ?></textarea><br/>
+          <td><textarea id="custom_css_styles" name="custom_css_styles" cols="60" rows="5" style="min-width:40em;"><?php echo $options['custom_css_styles']; ?></textarea><br/>
             <span class="description">These custom CSS styles will overwrite the Douban Collections default CSS styles.</span><br/>
             <span class="description">For example, to custom the individual book box size and its background color, you can use custom css like:</span><br/>
             <span class="description">#douban_collections ul li div.dc_entry {background-color: #0D0D0D; height: 125px; width: 195px;}</span><br/>
             <span class="description">[You can also copy all the Douban Collections default css from "Plugin Editor" here and make any modifications you like, these modifications won't be lost when you update the plugin.]</span>
+          </td>
+        </tr>
+        <tr>
+          <th scope="row"><label for="load_resources_only_in_douban_collections_page">Load Douban Collections resources only in specific pages:</label></th>
+          <td><input type="checkbox" value="1" id="load_resources_only_in_douban_collections_page" name="load_resources_only_in_douban_collections_page" <?php if($options['load_resources_only_in_douban_collections_page']) echo 'checked="checked"';?> > Enable&nbsp;&nbsp;<input type="text" id="douban_collections_page_names" style="width:38em;" value="<?php echo $options['douban_collections_page_names']; ?>" name="douban_collections_page_names" <?php if(!$options['load_resources_only_in_douban_collections_page']) echo 'disabled="disabled"';?> > <span class="description">(comma separated)</span><br/>
+            <span class="description">If enabled, Douban Collections plugin resources (css, js etc) will only be loaded in these specfic pages,</span><br/>
+            <span class="description">thus improve the load speed of other pages and posts.</span>
           </td>
         </tr>
       </tbody>
