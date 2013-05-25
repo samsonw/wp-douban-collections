@@ -201,7 +201,7 @@ if (!class_exists("DoubanCollections")) {
         }
 
         private function compose_userinfo_html() {
-            $douban_user = Douban::get_douban_user($this->options['douban_user_id']);
+            $douban_user = Douban::get_user($this->options['douban_user_id']);
             $user_part_html = '<div id="dc_user">'
                 . '<div id="dc_user_pic">'
                 . '<a href="' . $douban_user['link'][1]['@href'] . '" title="' . $douban_user['title']['$t'] . '" target="_blank">'
