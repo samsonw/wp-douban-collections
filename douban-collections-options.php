@@ -5,7 +5,7 @@
     <?php wp_nonce_field('douban-collections-nonce'); ?>
 
     <h3>Usage</h3>
-    <p>Create a page, then insert the code "[douban_collections category="book" with_user_info="true"]" in the content, "category" now supports "book" and "movie", "with_user_info" supports "true" and "false"</p>
+    <p>Create a page, then insert the code "[douban_collections category="CATEGORY" with_user_info="true"]" in the content, CATEGORY now supports "book"/"music"/"movie", "with_user_info" supports "true" and "false"</p>
 
     <br/>
     <h3>Douban Info</h3>
@@ -39,24 +39,28 @@
     </tbody></table>
     
     <br />
-    <p>Limit the maximum number of books displayed</p>
+
+    <h3>"Music" Display Style</h3>
+    <p>Tweak the display style of the music collections page.</p>
+
     <table class="form-table">
       <tbody>
       <tr>
-      <th><label for="book_status_reading_max_results">Show at most</label></th>
-      <td><input type="text" class="small-text" value="<?php echo $options['status_max_results']['book']['reading']; ?>" id="book_status_reading_max_results" name="book_status_reading_max_results"> "Reading" books</td>
+        <th><label for="music_status_wish_text">"Wish" status display name</label></th>
+        <td><input type="text" class="regular-text" value="<?php echo $options['status_text']['music']['wish']; ?>" id="music_status_wish_text" name="music_status_wish_text"></td>
       </tr>
       <tr>
-        <th><label for="book_status_read_max_results">Show at most</label></th>
-        <td><input type="text" class="small-text" value="<?php echo $options['status_max_results']['book']['read']; ?>" id="book_status_read_max_results" name="book_status_read_max_results"> "Read" books</td>
+        <th><label for="music_status_listening_text">"Listening" status display name</label></th>
+        <td><input type="text" class="regular-text" value="<?php echo $options['status_text']['music']['listening']; ?>" id="music_status_listening_text" name="music_status_listening_text"></td>
       </tr>
       <tr>
-        <th><label for="book_status_wish_max_results">Show at most</label></th>
-        <td><input type="text" class="small-text" value="<?php echo $options['status_max_results']['book']['wish']; ?>" id="book_status_wish_max_results" name="book_status_wish_max_results"> "Wish" books</td>
+        <th><label for="music_status_listened_text">"Listened" status display name</label></th>
+        <td><input type="text" class="regular-text" value="<?php echo $options['status_text']['music']['listened']; ?>" id="music_status_listened_text" name="music_status_listened_text"></td>
       </tr>
     </tbody></table>
     
     <br />
+
     <h3>"Movies" Display Style</h3>
     <p>Tweak the display style of the movie collections page.</p>
 
@@ -73,24 +77,6 @@
       <tr>
       <th><label for="movie_status_watched_text">"Watched" status display name</label></th>
       <td><input type="text" class="regular-text" value="<?php echo $options['status_text']['movie']['watched']; ?>" id="movie_status_watched_text" name="movie_status_watched_text"></td>
-      </tr>
-    </tbody></table>
-    
-    <br />
-    <p>Limit the maximum number of movies displayed</p>
-    <table class="form-table">
-      <tbody>
-      <tr>
-        <th><label for="movie_status_wish_max_results">Show at most</label></th>
-        <td><input type="text" class="small-text" value="<?php echo $options['status_max_results']['movie']['wish']; ?>" id="movie_status_wish_max_results" name="movie_status_wish_max_results"> "Wish" movies</td>
-      </tr>
-      <tr>
-        <th><label for="movie_status_watching_max_results">Show at most</label></th>
-        <td><input type="text" class="small-text" value="<?php echo $options['status_max_results']['movie']['watching']; ?>" id="movie_status_watching_max_results" name="movie_status_watching_max_results"> "Watching" movies</td>
-      </tr>
-      <tr>
-      <th><label for="movie_status_watched_max_results">Show at most</label></th>
-      <td><input type="text" class="small-text" value="<?php echo $options['status_max_results']['movie']['watched']; ?>" id="movie_status_watched_max_results" name="movie_status_watched_max_results"> "Watched" movies</td>
       </tr>
     </tbody></table>
     

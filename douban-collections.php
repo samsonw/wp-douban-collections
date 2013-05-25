@@ -41,11 +41,126 @@ if ( ! defined( 'WP_PLUGIN_URL' ) )
 if ( ! defined( 'WP_PLUGIN_DIR' ) )
     define( 'WP_PLUGIN_DIR', WP_CONTENT_DIR . '/plugins' );
 
-
 define('DOUBAN_COLLECTIONS_TRANSIENT_KEY', 'douban_collections_transient');
 define('DOUBAN_COLLECTIONS_USER_TRANSIENT_KEY', 'douban_collections_user_transient');
 define('DOUBAN_COLLECTIONS_OPTION_NAME', 'douban_collections_options');
 
+if (!class_exists("Douban")) {
+    class Douban {
+        public static function get_categories() {
+            return array('book', 'music', 'movie');
+        }
+
+        public static function get_category_status_list($category) {
+            switch ($category) {
+                case 'book':
+                    return array('read', 'reading', 'wish');
+                
+                case 'music':
+                    return array('listened', 'listening', 'wish');
+
+                case 'movie':
+                    return array('watched',  'watching',  'wish');
+
+                default:
+                    return array();
+            }
+        }
+
+        public static function get_user($user_id = '', $api_key = '00b80c3a9c5d966d022824afd518c347') {
+            // If we have a non-expire cached copy, use that instead
+            if ($douban_user = get_transient(DOUBAN_COLLECTIONS_USER_TRANSIENT_KEY)){
+                return $douban_user;
+            }
+            
+            $url = 'http://api.douban.com/people/' . $user_id . '?alt=json';
+            if (!empty($api_key)){
+                $url .= '&apikey=' . $api_key;
+            }
+            // TODO: exception handling
+            $douban_user = json_decode(file_get_contents($url), true);
+            // we need the big user icon instead of the default small one, if exists
+            $big_icon_url = preg_replace('/u(\d+)/i', 'ul$1', $douban_user['link'][2]['@href']);
+            $headers = get_headers($big_icon_url);
+            if (strpos($headers[0], '404') === false){
+                $douban_user['link'][2]['@href'] = $big_icon_url;
+            }
+
+            // Store the results into the WordPress transient, expires in 24 hours
+            set_transient(DOUBAN_COLLECTIONS_USER_TRANSIENT_KEY, $douban_user, 60 * 60 * 24);
+            
+            return $douban_user;
+        }
+
+        public static function get_collections($user_id, $category, $max_retrieve_items_list, $start_index = 1){
+            if (empty($user_id) || empty($category) || empty($max_retrieve_items_list))
+                return array();
+
+            // If we have a non-expire cached copy, use that instead
+            if ($collections = get_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY . $category)) {
+                return $collections;
+            }
+            
+            $max_retrive_items = array_sum($max_retrieve_items_list);
+            $items_per_request = 50;
+            
+            $request_count = 0;
+            while ($items_per_request * $request_count < $max_retrive_items) {
+                $raw_collections = Douban::retrive_raw_collections($user_id, $category, $current_index, $items_per_request);
+                foreach ($raw_collections['entry'] as $entry) {
+                    $subject_entry = $entry['db:subject'];
+                    $subject_entry['updated'] = $entry['updated']['$t'];
+                    $collections[ $entry['db:status']['$t'] ][] = $subject_entry;
+                    $subject_entry = null;
+                    $entry = null;
+                }
+                $raw_collections = null;
+                $request_count++;
+            }
+            
+            if (! empty($collections)) {
+                foreach (Douban::get_category_status_list($category) as $status)
+                    if (! empty($collections[$status]))
+                        $collections[$status] = array_slice($collections[$status], 0, $max_retrieve_items_list[$status]);
+
+                uksort($collections, 'Douban::cmp_collections_status_order');
+            } else {
+                $collections = array();
+            }
+            
+            // Store the results into the WordPress transient, expires in 30 mins
+            set_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY . $category, $collections, 60 * 30);
+            
+            return $collections;
+        }
+
+        private static function retrive_raw_collections($user_id, $category, $start_index, $max_results = 50, $api_key = '00b80c3a9c5d966d022824afd518c347'){
+            if (empty($user_id) || empty($category))
+                return "";
+
+            $url = 'http://api.douban.com/people/'.$user_id.'/collection?cat='.$category.'&start-index='.$start_index.'&max-results=' . $max_results . '&alt=json';
+            if (!empty($api_key)){
+                $url .= '&apikey=' . $api_key;
+            }
+            // TODO: exception handling
+            $raw_collections = json_decode(file_get_contents($url), true);
+            
+            return $raw_collections;
+        }
+
+        private static function cmp_collections_status_order($status_a, $status_b){
+            // TODO: make $collections_status_order an opition
+            $collections_status_order = array('wish' => '0', 
+                                              'reading' => '1', 
+                                              'listening' => '1',
+                                              'watching' => '1',
+                                              'read' => '2',
+                                              'listend' => '2',
+                                              'watched' => '2');
+            return strcmp($collections_status_order[$status_a], $collections_status_order[$status_b]);
+        }
+    }
+}
 
 if (!class_exists("DoubanCollections")) {
     class DoubanCollections {
@@ -62,116 +177,6 @@ if (!class_exists("DoubanCollections")) {
             add_action('admin_menu', array(&$this, 'douban_collections_settings'));
 
             register_activation_hook(__FILE__, array(&$this, 'install'));
-        }
-        
-        private function get_douban_user($user_id = '', $api_key = '00b80c3a9c5d966d022824afd518c347'){
-            // If we have a non-expire cached copy, use that instead
-            if($douban_user = get_transient(DOUBAN_COLLECTIONS_USER_TRANSIENT_KEY)) {
-                return $douban_user;
-            }
-            
-            $url = 'http://api.douban.com/people/' . $user_id . '?alt=json';
-            if (!empty($api_key)){
-                $url .= '&apikey=' . $api_key;
-            }
-            // TODO: exception handling
-            $douban_user = json_decode(file_get_contents($url), true);
-            // we need the big user icon instead of the default small one, if exists
-            $big_icon_url = preg_replace('/u(\d+)/i', 'ul$1', $douban_user['link'][2]['@href']);
-            $headers = get_headers($big_icon_url);
-            if(strpos($headers[0], '404') === false){
-                $douban_user['link'][2]['@href'] = $big_icon_url;
-            }
-
-            // Store the results into the WordPress transient, expires in 24 hours
-            set_transient(DOUBAN_COLLECTIONS_USER_TRANSIENT_KEY, $douban_user, 60 * 60 * 24);
-            
-            return $douban_user;
-        }
-        
-        private function cmp_collections_status_order($status_a, $status_b){
-            // TODO: make $collections_status_order an opition
-            $collections_status_order = array('reading' => '0', 'read' => '1', 'wish' => '2', 'watching' => '3', 'watched' => '4');
-            return strcmp($collections_status_order[$status_a], $collections_status_order[$status_b]);
-        }
-        
-        private function get_douban_collections($user_id = '', $category = 'book', $start_index = 1, $api_key = '00b80c3a9c5d966d022824afd518c347', $max_results = 50){
-            $url = 'http://api.douban.com/people/' . $user_id . '/collection?cat=' . $category . '&start-index=' . $start_index . '&max-results=' . $max_results . '&alt=json';
-            if (!empty($api_key)){
-                $url .= '&apikey=' . $api_key;
-            }
-            // TODO: exception handling
-            $raw_collections = json_decode(file_get_contents($url), true);
-            
-            return $raw_collections;
-        }
-        
-        private function get_collections($user_id = '', $category = 'book', $start_index = 1){
-            // If we have a non-expire cached copy, use that instead
-            if($collections = get_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY . $category)) {
-                return $collections;
-            }
-            
-            // TODO: make $max_display_results an option
-            $max_display_results = 500;
-            $items_per_request = 50;
-            
-            $i = 0;
-            // just make $total_results bigger than $start_index
-            $total_results = $start_index + 1;
-            do{
-                $current_index = $start_index + $items_per_request * $i;
-                if($current_index > $total_results){
-                    break;
-                }
-                $raw_collections = $this->get_douban_collections($user_id, $category, $current_index);
-                $total_results = $raw_collections['opensearch:totalResults']['$t'];
-                foreach ($raw_collections['entry'] as $entry) {
-                    $subject_entry = $entry['db:subject'];
-                    $subject_entry['updated'] = $entry['updated']['$t'];
-                    $collections[ $entry['db:status']['$t'] ][] = $subject_entry;
-                    $subject_entry = null;
-                    $entry = null;
-                }
-                $raw_collections = null;
-                $i++;
-            }while($current_index <= $max_display_results);
-            
-            if(!empty($collections)) {
-                switch ($category) {
-                    case 'book':
-                        if(!empty($collections['reading'])){
-                            $collections['reading'] = array_slice($collections['reading'], 0, $this->options['status_max_results']['book']['reading'], true);
-                        }
-                        if(!empty($collections['read'])){
-                            $collections['read'] = array_slice($collections['read'], 0, $this->options['status_max_results']['book']['read'], true);
-                        }
-                        if(!empty($collections['wish'])){
-                            $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['book']['wish'], true);
-                        }
-                        break;
-                    case 'movie':
-                        if(!empty($collections['watched'])){
-                            $collections['watched'] = array_slice($collections['watched'], 0, $this->options['status_max_results']['movie']['watched'], true);
-                        }
-                        if(!empty($collections['watching'])){
-                            $collections['watching'] = array_slice($collections['watching'], 0, $this->options['status_max_results']['movie']['watching'], true);
-                        }
-                        if(!empty($collections['wish'])){
-                            $collections['wish'] = array_slice($collections['wish'], 0, $this->options['status_max_results']['movie']['wish'], true);
-                        }
-                        break;
-                }
-            
-                uksort($collections, array(&$this, 'cmp_collections_status_order'));
-            }else {
-                $collections = array();
-            }
-            
-            // Store the results into the WordPress transient, expires in 30 mins
-            set_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY . $category, $collections, 60 * 30);
-            
-            return $collections;
         }
         
         private function get_author_name($author){
@@ -194,52 +199,45 @@ if (!class_exists("DoubanCollections")) {
             }
             return '';
         }
-        
-        private function compose_html($category, $with_user_info) {
-            $html = '<div id="douban_collections" class="douban_collections_column">';
-            if('true' === strtolower($with_user_info)) {
-                $douban_user = $this->get_douban_user($this->options['douban_user_id']);
-                $html .= '<div id="dc_user">'
-                    . '<div id="dc_user_pic">'
-                    . '<a href="' . $douban_user['link'][1]['@href'] . '" title="' . $douban_user['title']['$t'] . '" target="_blank">'
-                    . '<img class="dc_user_image" src="' . $douban_user['link'][2]['@href'] . '" alt="' . $douban_user['title']['$t'] . '" />'
-                    . '</a></div>'
-                    . '<ul id="dc_user_info">'
-                    . '<li class="dc_user_info_title">'
-                    . '<a href="' . $douban_user['link'][1]['@href'] . '" title="' . $douban_user['title']['$t'] . '" target="_blank">' . $douban_user['title']['$t'] . '</a>';
-                if(!empty($douban_user['db:signature']['$t'])){
-                    $html .= '<span class="dc_user_signature"> “' . $douban_user['db:signature']['$t'] . '”</span>';
-                }
-                $html .= '</li>'
-                    . '<li class="dc_user_info_item">Id: ' . $douban_user['db:uid']['$t'] . '</li>'
-                    . '<li class="dc_user_info_item">Home Page: <a href="' . $douban_user['link'][3]['@href']. '" title="' . $douban_user['link'][3]['@href'] . '" target="_blank">' . $douban_user['link'][3]['@href'] . '</a></li>'
-                    . '<li class="dc_user_info_item">Location: ' . $douban_user['db:location']['$t'] . '</li>'
-                    . '<li class="dc_user_info_item">' . $douban_user['content']['$t'] . '</li>'
-                    . '</ul>'
-                    . '</div>';
+
+        private function compose_userinfo_html() {
+            $douban_user = Douban::get_user($this->options['douban_user_id']);
+            $user_part_html = '<div id="dc_user">'
+                . '<div id="dc_user_pic">'
+                . '<a href="' . $douban_user['link'][1]['@href'] . '" title="' . $douban_user['title']['$t'] . '" target="_blank">'
+                . '<img class="dc_user_image" src="' . $douban_user['link'][2]['@href'] . '" alt="' . $douban_user['title']['$t'] . '" />'
+                . '</a></div>'
+                . '<ul id="dc_user_info">'
+                . '<li class="dc_user_info_title">'
+                . '<a href="' . $douban_user['link'][1]['@href'] . '" title="' . $douban_user['title']['$t'] . '" target="_blank">' . $douban_user['title']['$t'] . '</a>';
+
+            if (!empty($douban_user['db:signature']['$t'])) {
+                $user_part_html .= '<span class="dc_user_signature"> “' . $douban_user['db:signature']['$t'] . '”</span>';
             }
-            // Never trust user input
-            switch ($category) {
-                case 'book':
-                    $category = 'book';
-                    break;
-                case 'movie':
-                    $category = 'movie';
-                    break;
-                case 'music':
-                    //TODO add music category, now default to book
-                    $category = 'book';
-                    break;
-                default:
-                    $category = 'book';
-                    break;
-            }
-            $collections = $this->get_collections($this->options['douban_user_id'], $category);
-            $html .= '<ul>';
-            foreach($collections as $status => $status_collections){
-                $html .= '<li class="dc_status">' . $this->options['status_text'][$category][$status] . '</li>';
+
+            $user_part_html .= '</li>'
+                . '<li class="dc_user_info_item">Id: ' . $douban_user['db:uid']['$t'] . '</li>'
+                . '<li class="dc_user_info_item">Home Page: <a href="' . $douban_user['link'][3]['@href']. '" title="' . $douban_user['link'][3]['@href'] . '" target="_blank">' . $douban_user['link'][3]['@href'] . '</a></li>'
+                . '<li class="dc_user_info_item">Location: ' . $douban_user['db:location']['$t'] . '</li>'
+                . '<li class="dc_user_info_item">' . $douban_user['content']['$t'] . '</li>'
+                . '</ul>'
+                . '</div>';
+            return $user_part_html;
+        }
+
+        private function compose_category_html($category, $max_retrieve_items_list) {
+            if ($category == 'none')
+                return '';
+
+            $collections = Douban::get_collections($this->options['douban_user_id'], $category, $max_retrieve_items_list);
+            $category_html .= '<ul>';
+            foreach($collections as $status => $status_collections) {
+                if ($max_retrieve_items_list[$status] == 0)
+                    continue;
+                
+                $category_html .= '<li class="dc_status">' . $this->options['status_text'][$category][$status] . '</li>';
                 foreach($status_collections as $entry){
-                    $html .= '<li class="dc_list">'
+                    $category_html .= '<li class="dc_list">'
                         . '<div class="dc_entry">'
                         . '<div class="dc_pic">'
                         . '<a href="' . $entry['link'][1]['@href'] . '" title="' . $entry['title']['$t'] . '" target="_blank">'
@@ -255,29 +253,65 @@ if (!class_exists("DoubanCollections")) {
                         . '</ul>';
                     $movie_imdb = $this->get_attribute($entry['db:attribute'], 'imdb');
                     if(!empty($movie_imdb)){
-                        $html .= '<p class="dc_info_footer">'
+                        $category_html .= '<p class="dc_info_footer">'
                             . '<a href="' . $movie_imdb . '" title="IMDB" target="_blank">Link to IMDB'
                             . '</a></p>';
                     }
-                    $html .= '</div>'
-                        . '<p class="dc_updated">' . $status . ' at ' . mysql2date('j M Y', $entry['updated']) . '</p>'
+                    $category_html .= '</div>'
+                        // . '<p class="dc_updated">' . $status . ' at ' . mysql2date('j M Y', $entry['updated']) . '</p>'
                         . '</li>';
                 }
             }
-            $html .= '</ul>' . '</div>';
+            $category_html .= '</ul>';
+            return $category_html;
+        }
+        
+        private function compose_html($category, $with_user_info, $max_retrieve_items_list) {
+            $html = '<div id="douban_collections" class="douban_collections_column">';
+            if('true' === strtolower($with_user_info)) {
+                $html .= $this->compose_userinfo_html();
+            }
+
+            // Never trust user input
+            if (! in_array($category, Douban::get_categories()))
+                $category = 'none';
+
+            $html .= $this->compose_category_html($category, $max_retrieve_items_list);
+            $html .= '</div>';
             return $html;
         }
 
         function display_collections($atts){
-            extract( shortcode_atts( array(
-                'category' => 'book',
-                'with_user_info' => 'true',
-                ), $atts ) );
-            return $this->compose_html($category, $with_user_info);
+            extract( shortcode_atts( array('category'      => 'none',
+                                           'with_user_info' => 'false',
+                                           'reading_num'   => '0',
+                                           'read_num'      => '10',
+                                           'listened_num'  => '10',
+                                           'listening_num' => '0',
+                                           'watched_num'   => '10',
+                                           'watching_num'  => '0',
+                                           'wish_num'      => '0'), $atts ) );
+            $max_retrieve_items_list = array();
+            foreach (Douban::get_category_status_list($category) as $media_status)
+                $max_retrieve_items_list[$media_status] = ${$media_status.'_num'};
+
+            return $this->compose_html($category, $with_user_info, $max_retrieve_items_list);
         }
         
         private function get_options() {
-            $options = array('douban_user_id' => 'samsonw', 'status_text' => array('book' => array('reading' => '在读 ...', 'read' => '读过 ...', 'wish' => '想读 ...'), 'movie' => array('watched' => '看过 ...', 'watching' => ' 在看 ...', 'wish' => '想看 ...')), 'status_max_results' => array('book' => array('reading' => 25, 'read' => 50, 'wish' => 50), 'movie' => array('watched' => 50, 'watching' => 50, 'wish' => 50)), 'custom_css_styles' => '', 'load_resources_only_in_douban_collections_page' => false, 'douban_collections_page_names' => 'douban, books, movies, reads');
+            $options = array('douban_user_id' => 'samsonw', 
+                             'status_text' => array('book'  => array('reading'   => '在读 ...', 
+                                                                     'read'      => '读过 ...', 
+                                                                     'wish'      => '想读 ...'), 
+                                                    'music' => array('listened'  => '听过 ...', 
+                                                                     'listening' => '在听 ...', 
+                                                                     'wish'      => '想听 ...'), 
+                                                    'movie' => array('watched'   => '看过 ...', 
+                                                                     'watching'  => '在看 ...', 
+                                                                     'wish'      => '想看 ...')), 
+                             'custom_css_styles' => '', 
+                             'load_resources_only_in_douban_collections_page' => false, 
+                             'douban_collections_page_names' => 'douban, books, movies, reads');
             
             $saved_options = get_option(DOUBAN_COLLECTIONS_OPTION_NAME);
             
@@ -314,19 +348,9 @@ if (!class_exists("DoubanCollections")) {
 
                 $options['douban_user_id'] = $_POST['douban_user_id'];
 
-                $options['status_text']['book']['reading'] = stripslashes($_POST['book_status_reading_text']);
-                $options['status_text']['book']['read'] = stripslashes($_POST['book_status_read_text']);
-                $options['status_text']['book']['wish'] = stripslashes($_POST['book_status_wish_text']);
-                $options['status_max_results']['book']['reading'] = (int)$_POST['book_status_reading_max_results'];
-                $options['status_max_results']['book']['read'] = (int)$_POST['book_status_read_max_results'];
-                $options['status_max_results']['book']['wish'] = (int)$_POST['book_status_wish_max_results'];
-
-                $options['status_text']['movie']['watched'] = stripslashes($_POST['movie_status_watched_text']);
-                $options['status_text']['movie']['watching'] = stripslashes($_POST['movie_status_watching_text']);
-                $options['status_text']['movie']['wish'] = stripslashes($_POST['movie_status_wish_text']);
-                $options['status_max_results']['movie']['watched'] = (int)$_POST['movie_status_watched_max_results'];
-                $options['status_max_results']['movie']['watching'] = (int)$_POST['movie_status_watching_max_results'];
-                $options['status_max_results']['movie']['wish'] = (int)$_POST['movie_status_wish_max_results'];
+                foreach (Douban::get_categories() as $media_category)
+                    foreach (Douban::get_category_status_list($media_category) as $media_status)
+                        $options['status_text'][$media_category][$media_status] = stripslashes($_POST[$media_category.'_status_'.$media_status.'_text']);
 
                 $options['custom_css_styles'] = stripslashes($_POST['custom_css_styles']);
 
@@ -386,7 +410,7 @@ if (!class_exists("DoubanCollections")) {
         }
 
         function delete_cache() {
-            $categories = array('', 'book', 'movie', 'music');
+            $categories = array('') + Douban::get_categories();
             foreach($categories as $category) {
                 delete_transient(DOUBAN_COLLECTIONS_TRANSIENT_KEY . $category);
             }
